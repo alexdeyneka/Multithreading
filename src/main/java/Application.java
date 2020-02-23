@@ -1,4 +1,6 @@
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * The application is an executable point
@@ -11,9 +13,26 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Application {
 
     public static void main(String[] args) {
-        for (int i = 1; i <= 3; i++) {
-            new Thread(new WorkerService(), "Thread-" + i).start();
+        WorkerService worker1 = new WorkerService();
+        WorkerService worker2 = new WorkerService();
+        WorkerService worker3 = new WorkerService();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(3);
+        CompletionService<Integer> executorCompletionService = new ExecutorCompletionService<>(executorService);
+
+        List<Future<Integer>> futures = new ArrayList<Future<Integer>>();
+        futures.add(executorCompletionService.submit(worker1));
+        futures.add(executorCompletionService.submit(worker2));
+        futures.add(executorCompletionService.submit(worker3));
+
+        for (int i = 0; i < futures.size(); i++) {
+            try {
+                Integer result = executorCompletionService.take().get();
+                System.out.println("Result: " + result);
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
         }
-        WorkerService.getMap().forEach((key, value) -> System.out.println(key + " : " + value));
+        executorService.shutdown();
     }
 }

@@ -1,9 +1,10 @@
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-public class WorkerService implements Runnable {
+public class WorkerService implements Callable {
     private static final Logger LOGGER = Logger.getLogger(WorkerService.class.getName());
     private static BlockingQueue<int[]> queue;
 
@@ -23,20 +24,12 @@ public class WorkerService implements Runnable {
         }
     }
 
-    public void run() {
-        boolean permission = getPermission();
-        if (permission && !queue.isEmpty()) {
-            performAction(map, queue.poll());
-            finish();
-        }
-    }
-
     private synchronized boolean getPermission() {
         LOGGER.info("Thread " + Thread.currentThread().getName() + " is started");
         return true;
     }
 
-    private void performAction(ConcurrentHashMap<String, Integer> map, int[] inputArray) {
+    private Integer performAction(ConcurrentHashMap<String, Integer> map, int[] inputArray) {
         int maxXor = 0;
         for (int i = 0; i < inputArray.length; i++) {
             for (int j = i + 1; j < inputArray.length; j++) {
@@ -44,6 +37,7 @@ public class WorkerService implements Runnable {
             }
         }
         map.put(Thread.currentThread().getName(), maxXor);
+        return maxXor;
     }
 
     private synchronized void finish() {
@@ -52,5 +46,19 @@ public class WorkerService implements Runnable {
 
     public static ConcurrentHashMap<String, Integer> getMap() {
         return map;
+    }
+
+    @Override
+    public Integer call() throws Exception {
+        Integer result = null;
+        boolean permission = getPermission();
+        Thread.sleep(500);
+        while (!queue.isEmpty()) {
+            if (permission) {
+                result = performAction(map, queue.poll());
+                finish();
+            }
+        }
+        return result;
     }
 }
